@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Planner de Produção — Agência</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0e;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --surface3: #252525;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #f0ede8;
+    --text-muted: #7a7571;
+    --text-dim: #4a4744;
+    --accent: #e8d5a3;
+    --accent2: #c9b888;
+    --urgente-bg: #2a1515;
+    --urgente-text: #f08080;
+    --urgente-dot: #e05555;
+    --alta-bg: #221a0e;
+    --alta-text: #d4a84b;
+    --alta-dot: #c49535;
+    --media-bg: #0f1a14;
+    --media-text: #6bbf8a;
+    --media-dot: #4da870;
+    --feed-bg: #131a24;
+    --feed-text: #6aabdf;
+    --carrossel-bg: #1a1324;
+    --carrossel-text: #a888e8;
+    --status-done: #4da870;
+    --done-row-bg: rgba(52, 168, 100, 0.10);
+    --done-row-border: rgba(52, 168, 100, 0.22);
+    --done-row-text: #6bbf8a;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ─── NOISE TEXTURE ─── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.4;
+  }
+
+  /* ─── LAYOUT ─── */
+  .wrapper { max-width: 1200px; margin: 0 auto; padding: 0 32px; position: relative; z-index: 1; }
+
+  /* ─── TOPBAR ─── */
+  .topbar {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 0;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; background: rgba(14,14,14,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+  .topbar-inner { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 2.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+  .brand-name { font-size: 13px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text); }
+  .topbar-meta { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 0.04em; }
+
+  /* ─── HERO ─── */
+  .hero { padding: 64px 0 48px; border-bottom: 1px solid var(--border); }
+  .hero-eyebrow { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px; }
+  .hero-title { font-size: clamp(36px, 5vw, 64px); font-weight: 800; line-height: 1.0; color: var(--text); letter-spacing: -0.03em; }
+  .hero-title span { color: var(--accent); }
+  .hero-sub { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-muted); margin-top: 20px; max-width: 480px; line-height: 1.7; }
+  .hero-stats { display: flex; gap: 40px; margin-top: 40px; flex-wrap: wrap; }
+  .stat { }
+  .stat-num { font-size: 36px; font-weight: 800; color: var(--accent); letter-spacing: -0.03em; line-height: 1; }
+  .stat-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* ─── DAY NAV ─── */
+  .day-nav { display: flex; gap: 4px; padding: 24px 0; border-bottom: 1px solid var(--border); }
+  .day-btn {
+    padding: 8px 20px; border-radius: 4px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-muted);
+    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+    transition: all 0.18s ease;
+  }
+  .day-btn:hover { border-color: var(--border-strong); color: var(--text); }
+  .day-btn.active { background: var(--accent); border-color: var(--accent); color: #0e0e0e; }
+  .day-btn .badge { display: inline-block; margin-left: 6px; background: rgba(255,255,255,0.15); border-radius: 3px; padding: 1px 5px; font-size: 10px; }
+  .day-btn.active .badge { background: rgba(0,0,0,0.2); }
+
+  /* ─── SECTION ─── */
+  .day-section { display: none; padding: 40px 0; }
+  .day-section.visible { display: block; animation: fadeUp 0.3s ease; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+  .section-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 32px; gap: 20px; flex-wrap: wrap; }
+  .section-title-area { }
+  .section-day { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+  .section-title { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+  .alert-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #2a1a0a; border: 1px solid rgba(212,168,75,0.3);
+    color: var(--alta-text); font-family: 'DM Mono', monospace;
+    font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 5px 12px; border-radius: 3px; margin-top: 10px;
+  }
+  .alert-pill::before { content: '!'; display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; background: var(--alta-dot); border-radius: 50%; color: #0e0e0e; font-weight: 800; font-size: 9px; }
+
+  .section-progress { text-align: right; }
+  .progress-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+  .progress-bar { width: 160px; height: 4px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.5s ease; }
+  .progress-count { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); margin-top: 4px; }
+
+  /* ─── TABLE ─── */
+  .table-wrap { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: var(--surface); padding: 12px 16px;
+    font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
+    color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase;
+    text-align: left; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  tbody tr.done {
+    background: var(--done-row-bg) !important;
+    border-bottom-color: var(--done-row-border) !important;
+    transition: background 0.4s ease;
+  }
+  tbody tr.done td { color: var(--done-row-text) !important; }
+  tbody tr.done .row-client { color: #7dd4a0 !important; }
+  tbody tr.done .badge { opacity: 0.55; }
+  tbody tr.done .post-day strong { color: var(--done-row-text) !important; }
+  tbody tr.done .obs-field { color: var(--done-row-text) !important; }
+  tbody tr.done .status-sel { border-color: rgba(52,168,100,0.35) !important; color: #6bbf8a !important; background-color: rgba(52,168,100,0.08) !important; }
+  tbody td { padding: 14px 16px; vertical-align: middle; }
+
+  .col-num { width: 48px; }
+  .col-client { width: 160px; }
+  .col-type { width: 110px; }
+  .col-post { width: 120px; }
+  .col-prio { width: 100px; }
+  .col-status { width: 190px; }
+  .col-obs { }
+
+  .row-num { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-dim); text-align: center; }
+  .row-client { font-weight: 700; font-size: 13px; letter-spacing: 0.01em; }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 3px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.04em; }
+  .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .badge-feed { background: var(--feed-bg); color: var(--feed-text); }
+  .badge-feed::before { background: var(--feed-text); }
+  .badge-carrossel { background: var(--carrossel-bg); color: var(--carrossel-text); }
+  .badge-carrossel::before { background: var(--carrossel-text); }
+  .badge-urgente { background: var(--urgente-bg); color: var(--urgente-text); }
+  .badge-urgente::before { background: var(--urgente-dot); }
+  .badge-alta { background: var(--alta-bg); color: var(--alta-text); }
+  .badge-alta::before { background: var(--alta-dot); }
+  .badge-media { background: var(--media-bg); color: var(--media-text); }
+  .badge-media::before { background: var(--media-dot); }
+
+  .post-day { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-muted); }
+  .post-day strong { color: var(--text); font-weight: 500; }
+
+  .status-sel {
+    width: 100%; padding: 6px 10px; border-radius: 4px;
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--text-muted); font-family: 'DM Mono', monospace;
+    font-size: 11px; cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center;
+    padding-right: 24px;
+  }
+  .status-sel:focus { outline: none; border-color: var(--accent); }
+  .status-sel option { background: #1e1e1e; }
+
+  .obs-field {
+    width: 100%; padding: 6px 10px; border-radius: 4px;
+    border: 1px solid transparent; background: transparent;
+    color: var(--text-muted); font-family: 'DM Mono', monospace; font-size: 11px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .obs-field:hover { border-color: var(--border); background: var(--surface2); }
+  .obs-field:focus { outline: none; border-color: var(--accent); background: var(--surface2); color: var(--text); }
+  .obs-field::placeholder { color: var(--text-dim); }
+
+  /* ─── CHECKLIST ─── */
+  .checklist-wrap { margin-top: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px; }
+  .checklist-title { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 14px; }
+  .checklist-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .check-item { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; transition: all 0.15s; user-select: none; }
+  .check-item:hover { border-color: var(--border-strong); background: var(--surface2); }
+  .check-item.checked { background: rgba(77,168,112,0.08); border-color: rgba(77,168,112,0.25); }
+  .check-item input { display: none; }
+  .check-box { width: 14px; height: 14px; border: 1px solid var(--border-strong); border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .check-item.checked .check-box { background: var(--status-done); border-color: var(--status-done); }
+  .check-box svg { opacity: 0; transition: opacity 0.15s; }
+  .check-item.checked .check-box svg { opacity: 1; }
+  .check-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); }
+  .check-item.checked .check-label { color: var(--text-dim); text-decoration: line-through; }
+
+  /* ─── SUMMARY ─── */
+  .summary-section { padding: 40px 0; border-top: 1px solid var(--border); }
+  .summary-title { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 24px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+  .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+  .summary-card.total { border-color: rgba(232,213,163,0.2); background: rgba(232,213,163,0.04); }
+  .summary-card-num { font-size: 40px; font-weight: 800; letter-spacing: -0.04em; color: var(--text); line-height: 1; }
+  .summary-card.total .summary-card-num { color: var(--accent); }
+  .summary-card-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 8px; }
+
+  /* ─── LEGEND ─── */
+  .legend { display: flex; gap: 20px; padding: 20px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); }
+  .legend-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  /* ─── FOOTER ─── */
+  footer { border-top: 1px solid var(--border); padding: 24px 0; display: flex; justify-content: space-between; align-items: center; }
+  .footer-text { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 0.06em; }
+
+  @media (max-width: 768px) {
+    .wrapper { padding: 0 16px; }
+    .hero-stats { gap: 24px; }
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .day-nav { flex-wrap: wrap; }
+    .section-header { flex-direction: column; }
+    .progress-bar { width: 100%; }
+    table { font-size: 12px; }
+    .col-obs { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrapper">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-dot"></div>
+        <span class="brand-name">Planner · Produção</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <span id="save-indicator" style="font-family:'DM Mono',monospace;font-size:10px;color:#4a4744;letter-spacing:0.06em;transition:color 0.3s;">auto-save ativo</span>
+        <button onclick="resetAll()" style="font-family:'DM Mono',monospace;font-size:10px;padding:5px 12px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#4a4744;cursor:pointer;letter-spacing:0.06em;transition:all 0.15s;" onmouseover="this.style.color='#f08080';this.style.borderColor='rgba(224,85,85,0.3)'" onmouseout="this.style.color='#4a4744';this.style.borderColor='rgba(255,255,255,0.1)'">↺ resetar</button>
+        <span class="topbar-meta" id="live-date"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrapper">
+
+  <div class="hero">
+    <div class="hero-eyebrow">Semana atual — feeds & carrosseis</div>
+    <h1 class="hero-title">Demanda<br/><span>semanal.</span></h1>
+    <p class="hero-sub">Organização operacional de artes para redes sociais. Apenas feeds e carrosseis — sem reels, sem stories.</p>
+    <div class="hero-stats">
+      <div class="stat"><div class="stat-num">21</div><div class="stat-label">Artes na semana</div></div>
+      <div class="stat"><div class="stat-num">6</div><div class="stat-label">Clientes</div></div>
+      <div class="stat"><div class="stat-num">4</div><div class="stat-label">Dias de produção</div></div>
+    </div>
+  </div>
+
+  <div class="day-nav">
+    <button class="day-btn active" onclick="showDay('terca')">Terça <span class="badge">6</span></button>
+    <button class="day-btn" onclick="showDay('quarta')">Quarta <span class="badge">5</span></button>
+    <button class="day-btn" onclick="showDay('quinta')">Quinta <span class="badge">5</span></button>
+    <button class="day-btn" onclick="showDay('sexta')">Sexta <span class="badge">5</span></button>
+  </div>
+
+  <!-- ── TERÇA ── -->
+  <div class="day-section visible" id="day-terca">
+    <div class="section-header">
+      <div class="section-title-area">
+        <div class="section-day">Dia 1 de 4</div>
+        <div class="section-title">Terça-feira</div>
+        <div class="alert-pill">Inclui pendências de segunda-feira</div>
+      </div>
+      <div class="section-progress">
+        <div class="progress-label">Progresso do dia</div>
+        <div class="progress-bar"><div class="progress-fill" id="prog-terca" style="width:0%"></div></div>
+        <div class="progress-count" id="prog-terca-txt">0 / 6 concluídas</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-num">#</th>
+            <th class="col-client">Cliente</th>
+            <th class="col-type">Tipo</th>
+            <th class="col-post">Postagem</th>
+            <th class="col-prio">Prioridade</th>
+            <th class="col-status">Status</th>
+            <th class="col-obs">Observações</th>
+          </tr>
+        </thead>
+        <tbody id="rows-terca">
+          <tr data-id="t1">
+            <td class="row-num">01</td>
+            <td class="row-client">Açogyn</td>
+            <td><span class="badge badge-feed">Feed</span></td>
+            <td class="post-day"><strong>Segunda</strong></td>
+            <td><span class="badge badge-urgente">Urgente</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'t1','terca')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="t2">
+            <td class="row-num">02</td>
+            <td class="row-client">Green Coast</td>
+            <td><span class="badge badge-feed">Feed</span></td>
+            <td class="post-day"><strong>Segunda</strong></td>
+            <td><span class="badge badge-urgente">Urgente</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'t2','terca')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="t3">
+            <td class="row-num">03</td>
+            <td class="row-client">Villa Blue</td>
+            <td><span class="badge badge-carrossel">Carrossel</span></td>
+            <td class="post-day"><strong>Segunda</strong></td>
+            <td><span class="badge badge-urgente">Urgente</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'t3','terca')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="t4">
+            <td class="row-num">04</td>
+            <td class="row-client">Exclusif</td>
+            <td><span class="badge badge-feed">Feed</span></td>
+            <td class="post-day"><strong>Terça</strong></td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'t4','terca')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="t5">
+            <td class="row-num">05</td>
+            <td class="row-client">Vooga</td>
+            <td><span class="badge badge-feed">Feed</span></td>
+            <td class="post-day"><strong>Terça</strong></td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'t5','terca')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="t6">
+            <td class="row-num">06</td>
+            <td class="row-client">Atual</td>
+            <td><span class="badge badge-feed">Feed</span></td>
+            <td class="post-day"><strong>Terça</strong></td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'t6','terca')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="checklist-wrap">
+      <div class="checklist-title">Checklist operacional — terça</div>
+      <div class="checklist-grid">
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Açogyn (seg)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Green Coast (seg)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Villa Blue (seg)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Exclusif (ter)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Vooga (ter)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Atual (ter)</span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── QUARTA ── -->
+  <div class="day-section" id="day-quarta">
+    <div class="section-header">
+      <div class="section-title-area">
+        <div class="section-day">Dia 2 de 4</div>
+        <div class="section-title">Quarta-feira</div>
+      </div>
+      <div class="section-progress">
+        <div class="progress-label">Progresso do dia</div>
+        <div class="progress-bar"><div class="progress-fill" id="prog-quarta" style="width:0%"></div></div>
+        <div class="progress-count" id="prog-quarta-txt">0 / 5 concluídas</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-num">#</th>
+            <th class="col-client">Cliente</th>
+            <th class="col-type">Tipo</th>
+            <th class="col-post">Postagem</th>
+            <th class="col-prio">Prioridade</th>
+            <th class="col-status">Status</th>
+            <th class="col-obs">Observações</th>
+          </tr>
+        </thead>
+        <tbody id="rows-quarta">
+          <tr data-id="q1">
+            <td class="row-num">01</td>
+            <td class="row-client">Aço Móveis</td>
+            <td><span class="badge badge-feed">Feed</span></td>
+            <td class="post-day"><strong>Quarta</strong></td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'q1','quarta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="q2">
+            <td class="row-num">02</td>
+            <td class="row-client">Açogyn</td>
+            <td><span class="badge badge-feed">Feed</span></td>
+            <td class="post-day"><strong>Quarta</strong></td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'q2','quarta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="q3">
+            <td class="row-num">03</td>
+            <td class="row-client">Green Coast</td>
+            <td><span class="badge badge-carrossel">Carrossel</span></td>
+            <td class="post-day"><strong>Quarta</strong></td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'q3','quarta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="q4">
+            <td class="row-num">04</td>
+            <td class="row-client">Açogyn</td>
+            <td><span class="badge badge-feed">Feed</span></td>
+            <td class="post-day"><strong>Quinta</strong></td>
+            <td><span class="badge badge-media">Média</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'q4','quarta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="q5">
+            <td class="row-num">05</td>
+            <td class="row-client">Exclusif</td>
+            <td><span class="badge badge-carrossel">Carrossel</span></td>
+            <td class="post-day"><strong>Quinta</strong></td>
+            <td><span class="badge badge-media">Média</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'q5','quarta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="checklist-wrap">
+      <div class="checklist-title">Checklist operacional — quarta</div>
+      <div class="checklist-grid">
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Aço Móveis (qua)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Açogyn (qua)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Green Coast (qua)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Açogyn (qui)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Exclusif (qui)</span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── QUINTA ── -->
+  <div class="day-section" id="day-quinta">
+    <div class="section-header">
+      <div class="section-title-area">
+        <div class="section-day">Dia 3 de 4</div>
+        <div class="section-title">Quinta-feira</div>
+      </div>
+      <div class="section-progress">
+        <div class="progress-label">Progresso do dia</div>
+        <div class="progress-bar"><div class="progress-fill" id="prog-quinta" style="width:0%"></div></div>
+        <div class="progress-count" id="prog-quinta-txt">0 / 5 concluídas</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-num">#</th>
+            <th class="col-client">Cliente</th>
+            <th class="col-type">Tipo</th>
+            <th class="col-post">Postagem</th>
+            <th class="col-prio">Prioridade</th>
+            <th class="col-status">Status</th>
+            <th class="col-obs">Observações</th>
+          </tr>
+        </thead>
+        <tbody id="rows-quinta">
+          <tr data-id="qu1">
+            <td class="row-num">01</td>
+            <td class="row-client">Villa Blue</td>
+            <td><span class="badge badge-feed">Feed</span></td>
+            <td class="post-day"><strong>Quinta</strong></td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'qu1','quinta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="qu2">
+            <td class="row-num">02</td>
+            <td class="row-client">Vooga</td>
+            <td><span class="badge badge-feed">Feed</span></td>
+            <td class="post-day"><strong>Quinta</strong></td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'qu2','quinta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="qu3">
+            <td class="row-num">03</td>
+            <td class="row-client">Atual</td>
+            <td><span class="badge badge-carrossel">Carrossel</span></td>
+            <td class="post-day"><strong>Quinta</strong></td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'qu3','quinta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="qu4">
+            <td class="row-num">04</td>
+            <td class="row-client">Exclusif</td>
+            <td><span class="badge badge-feed">Feed</span></td>
+            <td class="post-day"><strong>Sexta</strong></td>
+            <td><span class="badge badge-media">Média</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'qu4','quinta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="qu5">
+            <td class="row-num">05</td>
+            <td class="row-client">Exclusif</td>
+            <td><span class="badge badge-carrossel">Carrossel</span></td>
+            <td class="post-day"><strong>Sexta</strong></td>
+            <td><span class="badge badge-media">Média</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'qu5','quinta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="checklist-wrap">
+      <div class="checklist-title">Checklist operacional — quinta</div>
+      <div class="checklist-grid">
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Villa Blue (qui)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Vooga (qui)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Atual (qui)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Exclusif (sex) #1</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Exclusif (sex) #2</span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SEXTA ── -->
+  <div class="day-section" id="day-sexta">
+    <div class="section-header">
+      <div class="section-title-area">
+        <div class="section-day">Dia 4 de 4</div>
+        <div class="section-title">Sexta-feira</div>
+      </div>
+      <div class="section-progress">
+        <div class="progress-label">Progresso do dia</div>
+        <div class="progress-bar"><div class="progress-fill" id="prog-sexta" style="width:0%"></div></div>
+        <div class="progress-count" id="prog-sexta-txt">0 / 5 concluídas</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-num">#</th>
+            <th class="col-client">Cliente</th>
+            <th class="col-type">Tipo</th>
+            <th class="col-post">Postagem</th>
+            <th class="col-prio">Prioridade</th>
+            <th class="col-status">Status</th>
+            <th class="col-obs">Observações</th>
+          </tr>
+        </thead>
+        <tbody id="rows-sexta">
+          <tr data-id="s1">
+            <td class="row-num">01</td>
+            <td class="row-client">Villa Blue</td>
+            <td><span class="badge badge-feed">Feed</span></td>
+            <td class="post-day"><strong>Sexta</strong></td>
+            <td><span class="badge badge-alta">Alta</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'s1','sexta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="s2">
+            <td class="row-num">02</td>
+            <td class="row-client">Green Coast</td>
+            <td><span class="badge badge-carrossel">Carrossel</span></td>
+            <td class="post-day"><strong>Seg. próx.</strong></td>
+            <td><span class="badge badge-media">Média</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'s2','sexta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="s3">
+            <td class="row-num">03</td>
+            <td class="row-client">Villa Blue</td>
+            <td><span class="badge badge-feed">Feed</span></td>
+            <td class="post-day"><strong>Seg. próx.</strong></td>
+            <td><span class="badge badge-media">Média</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'s3','sexta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="s4">
+            <td class="row-num">04</td>
+            <td class="row-client">Aço Móveis</td>
+            <td><span class="badge badge-feed">Feed</span></td>
+            <td class="post-day"><strong>Qua. próx.</strong></td>
+            <td><span class="badge badge-media">Média</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'s4','sexta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+          <tr data-id="s5">
+            <td class="row-num">05</td>
+            <td class="row-client">Açogyn</td>
+            <td><span class="badge badge-carrossel">Carrossel</span></td>
+            <td class="post-day"><strong>Qua. próx.</strong></td>
+            <td><span class="badge badge-media">Média</span></td>
+            <td><select class="status-sel" onchange="updateStatus(this,'s5','sexta')"><option value="">— status —</option><option>Briefing recebido</option><option>Em criação</option><option>Enviado p/ aprovação</option><option>Aprovado</option><option value="done">✓ Finalizado/Postado</option></select></td>
+            <td><input class="obs-field" type="text" placeholder="anotações..." /></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="checklist-wrap">
+      <div class="checklist-title">Checklist operacional — sexta</div>
+      <div class="checklist-grid">
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Villa Blue (sex)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Green Coast (seg próx.)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Villa Blue (seg próx.)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Aço Móveis (qua próx.)</span></label>
+        <label class="check-item" onclick="toggleCheck(this)"><input type="checkbox"/><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#0e0e0e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="check-label">Açogyn (qua próx.)</span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SUMMARY ── -->
+  <div class="summary-section">
+    <div class="summary-title">Resumo executivo da semana</div>
+    <div class="summary-grid">
+      <div class="summary-card"><div class="summary-card-num">6</div><div class="summary-card-label">Terça-feira</div></div>
+      <div class="summary-card"><div class="summary-card-num">5</div><div class="summary-card-label">Quarta-feira</div></div>
+      <div class="summary-card"><div class="summary-card-num">5</div><div class="summary-card-label">Quinta-feira</div></div>
+      <div class="summary-card"><div class="summary-card-num">5</div><div class="summary-card-label">Sexta-feira</div></div>
+      <div class="summary-card total"><div class="summary-card-num">21</div><div class="summary-card-label">Total da semana</div></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#e05555"></div>Urgente — postagem atrasada</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#c49535"></div>Alta — postagem no mesmo dia</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4da870"></div>Média — postagem futura</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#6aabdf"></div>Feed</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#a888e8"></div>Carrossel</div>
+  </div>
+
+
+  <div style="border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:20px 24px;margin-bottom:24px;background:#161616;">
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:#4a4744;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Como usar no Chrome — acesso rápido</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:#7a7571;"><span style="color:#e8d5a3;margin-right:8px;">1.</span>Salve o arquivo <code style="background:#252525;padding:2px 6px;border-radius:3px;font-size:11px;">planner-producao.html</code> no seu computador</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:#7a7571;"><span style="color:#e8d5a3;margin-right:8px;">2.</span>Arraste o arquivo direto para a barra de favoritos do Chrome</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:#7a7571;"><span style="color:#e8d5a3;margin-right:8px;">3.</span>Clique no favorito a qualquer momento — abre instantaneamente</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:#7a7571;"><span style="color:#e8d5a3;margin-right:8px;">4.</span>Tudo que você alterar fica salvo automaticamente no navegador</div>
+      <div style="margin-top:6px;font-family:'DM Mono',monospace;font-size:11px;color:#4a4744;">⚠ O progresso fica salvo no Chrome deste computador. Não apague os dados do navegador.</div>
+    </div>
+  </div>
+
+  <footer>
+    <span class="footer-text">Planner semanal · feeds &amp; carrosseis apenas</span>
+    <span class="footer-text" id="footer-date"></span>
+  </footer>
+
+</div>
+
+<script>
+  // ─── CONFIG ───────────────────────────────────────────────
+  const days   = ['terca','quarta','quinta','sexta'];
+  const totals = { terca:6, quarta:5, quinta:5, sexta:5 };
+  const STORE_KEY = 'planner_data_v1';
+
+  // ─── DATE ────────────────────────────────────────────────
+  const now = new Date();
+  const opts = { weekday:'long', day:'numeric', month:'long', year:'numeric' };
+  const formatted = now.toLocaleDateString('pt-BR', opts);
+  document.getElementById('live-date').textContent = formatted;
+  document.getElementById('footer-date').textContent = formatted;
+
+  // ─── SAVE INDICATOR ──────────────────────────────────────
+  const saveEl = document.getElementById('save-indicator');
+  let saveTimer;
+  function flashSaved() {
+    clearTimeout(saveTimer);
+    saveEl.textContent = '✓ salvo';
+    saveEl.style.color = '#4da870';
+    saveTimer = setTimeout(() => {
+      saveEl.textContent = 'auto-save ativo';
+      saveEl.style.color = '';
+    }, 2000);
+  }
+
+  // ─── PERSIST: save all state to localStorage ─────────────
+  function saveState() {
+    const state = { statuses:{}, obs:{}, checks:[] };
+
+    // statuses + obs
+    document.querySelectorAll('tbody tr[data-id]').forEach(tr => {
+      const id  = tr.dataset.id;
+      const sel = tr.querySelector('select');
+      const obs = tr.querySelector('input.obs-field');
+      if (sel) state.statuses[id] = sel.value;
+      if (obs) state.obs[id]      = obs.value;
+    });
+
+    // checklists
+    document.querySelectorAll('.check-item').forEach((item, i) => {
+      state.checks[i] = item.classList.contains('checked');
+    });
+
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    flashSaved();
+  }
+
+  // ─── RESTORE state from localStorage ─────────────────────
+  function restoreState() {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return;
+    let state;
+    try { state = JSON.parse(raw); } catch(e) { return; }
+
+    // statuses + obs
+    if (state.statuses) {
+      Object.entries(state.statuses).forEach(([id, val]) => {
+        const tr  = document.querySelector(`tr[data-id="${id}"]`);
+        if (!tr) return;
+        const sel = tr.querySelector('select');
+        if (sel) {
+          sel.value = val;
+          if (val === 'done') tr.classList.add('done');
+          else                tr.classList.remove('done');
+        }
+      });
+    }
+    if (state.obs) {
+      Object.entries(state.obs).forEach(([id, val]) => {
+        const tr  = document.querySelector(`tr[data-id="${id}"]`);
+        if (!tr) return;
+        const inp = tr.querySelector('input.obs-field');
+        if (inp) inp.value = val;
+      });
+    }
+
+    // checklists
+    if (state.checks) {
+      document.querySelectorAll('.check-item').forEach((item, i) => {
+        if (state.checks[i]) item.classList.add('checked');
+        else                  item.classList.remove('checked');
+      });
+    }
+
+    // rebuild progress bars
+    days.forEach(d => updateProgress(d));
+  }
+
+  // ─── NAV ────────────────────────────────────────────────
+  function showDay(day) {
+    days.forEach(d => document.getElementById('day-'+d).classList.remove('visible'));
+    document.getElementById('day-'+day).classList.add('visible');
+    document.querySelectorAll('.day-btn').forEach((b,i) => {
+      b.classList.toggle('active', days[i] === day);
+    });
+  }
+
+  // ─── STATUS CHANGE ───────────────────────────────────────
+  function updateStatus(sel, rowId, day) {
+    const tr = sel.closest('tr');
+    tr.classList.toggle('done', sel.value === 'done');
+    updateProgress(day);
+    saveState();
+  }
+
+  // ─── PROGRESS ────────────────────────────────────────────
+  function updateProgress(day) {
+    const tbody = document.getElementById('rows-'+day);
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll('tr');
+    let doneCount = 0;
+    rows.forEach(r => {
+      const sel = r.querySelector('select');
+      if (sel && sel.value === 'done') doneCount++;
+    });
+    const total = totals[day];
+    const pct   = Math.round((doneCount / total) * 100);
+    document.getElementById('prog-'+day).style.width = pct + '%';
+    document.getElementById('prog-'+day+'-txt').textContent = doneCount + ' / ' + total + ' concluídas';
+  }
+
+  // ─── CHECKLIST TOGGLE ────────────────────────────────────
+  function toggleCheck(label) {
+    label.classList.toggle('checked');
+    saveState();
+  }
+
+  // ─── OBS: save on blur ───────────────────────────────────
+  document.querySelectorAll('input.obs-field').forEach(inp => {
+    inp.addEventListener('input', saveState);
+  });
+
+  // ─── RESET BUTTON ────────────────────────────────────────
+  function resetAll() {
+    if (!confirm('Tem certeza? Todo o progresso será apagado.')) return;
+    localStorage.removeItem(STORE_KEY);
+    location.reload();
+  }
+
+  // ─── INIT ────────────────────────────────────────────────
+  // Entry animation then restore
+  document.querySelectorAll('tbody tr').forEach((tr, i) => {
+    tr.style.opacity = '0';
+    tr.style.transform = 'translateY(6px)';
+    tr.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    setTimeout(() => {
+      tr.style.opacity = '';
+      tr.style.transform = '';
+    }, 60 + i * 30);
+  });
+
+  // Restore after paint
+  requestAnimationFrame(() => setTimeout(restoreState, 20));
+</script>
+</body>
+</html>
